@@ -74,6 +74,7 @@ class ThemeListener(QThread):
 
     def stop(self):
         self.requestInterruption()
+        self.wait()
 
 
 class ThemeManager(QObject):

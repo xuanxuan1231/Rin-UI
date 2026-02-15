@@ -213,7 +213,7 @@ class WinEventFilter(QAbstractNativeEventFilter):
         self.visible_handlers.clear()
         self.hwnds.clear()
 
-    def _on_visible_changed(self, visible: bool, window: QQuickWindow):
+    def _on_visible_changed(self, visible: bool, *, window: QQuickWindow):
         # 直接使用传入的窗口对象
         if visible and self.hwnds.get(window) is None:
             self._init_window_handle(window)
