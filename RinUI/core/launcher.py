@@ -104,10 +104,17 @@ class RinUIWindow:
 
         app_instance = QApplication.instance()
         app_instance.installNativeEventFilter(self.win_event_filter)
+        app_instance.aboutToQuit.connect(self._clean_up_windows_resources)
         self.engine.rootContext().setContextProperty(
             "WinEventManager", self.win_event_manager
         )
         self._apply_windows_effects()
+
+    def _clean_up_windows_resources(self):
+        app_instance = QApplication.instance()
+        if app_instance and self.win_event_filter:
+            app_instance.removeNativeEventFilter(self.win_event_filter)
+            self.win_event_filter.clean_up()
 
     def setIcon(self, path: Union[str, Path] = None) -> None:
         """

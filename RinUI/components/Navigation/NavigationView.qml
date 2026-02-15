@@ -358,9 +358,11 @@ RowLayout {
                 Qt.callLater(function() {
                     if (stackView.busy && stackView.currentItem === pageInstance) {
                         let animationHandler = function() {
-                            if (stackView.currentItem === pageInstance && !stackView.busy) {
-                                setPushInProgress(false)
+                            if (!stackView.busy) {
                                 stackView.busyChanged.disconnect(animationHandler)
+                                if (stackView.currentItem === pageInstance) {
+                                    setPushInProgress(false)
+                                }
                             }
                         }
                         if (!stackView.busy) setPushInProgress(false)
@@ -412,10 +414,12 @@ RowLayout {
         Qt.callLater(function() {
             if (stackView.busy && stackView.currentItem === pageInstance) {
                 let animationHandler = function() {
-                    if (stackView.currentItem === pageInstance && !stackView.busy) {
-                        setPushInProgress(false)
+                    if (!stackView.busy) {
                         stackView.busyChanged.disconnect(animationHandler)
-                        restoreItemsAfterReload()
+                        if (stackView.currentItem === pageInstance) {
+                            setPushInProgress(false)
+                            restoreItemsAfterReload()
+                        }
                     }
                 }
                 if (!stackView.busy) {
