@@ -74,7 +74,7 @@ class ThemeListener(QThread):
 
     def stop(self):
         self.requestInterruption()
-        self.wait()
+        self.wait(2000)
 
 
 class ThemeManager(QObject):
@@ -109,7 +109,6 @@ class ThemeManager(QObject):
             RinConfig.save_config()
             print("Save config.")
             self.listener.stop()
-            self.listener.wait()  # 等待线程结束
             self.listener = None
             print("Theme listener stopped.")
 
