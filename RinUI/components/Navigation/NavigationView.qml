@@ -360,8 +360,9 @@ RowLayout {
                         let animationHandler = function() {
                             if (!stackView.busy) {
                                 stackView.busyChanged.disconnect(animationHandler)
-                                if (stackView.currentItem === pageInstance)
+                                if (stackView.currentItem === pageInstance) {
                                     setPushInProgress(false)
+                                }
                             }
                         }
                         if (!stackView.busy) setPushInProgress(false)

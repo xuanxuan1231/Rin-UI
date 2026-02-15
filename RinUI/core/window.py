@@ -1,6 +1,7 @@
 import ctypes
 import platform
 from ctypes import wintypes
+from functools import partial
 
 import win32con
 from PySide6.QtCore import QAbstractNativeEventFilter, QByteArray, QObject, Slot
@@ -197,8 +198,7 @@ class WinEventFilter(QAbstractNativeEventFilter):
         self.resize_border = 8
 
         for window in self.windows:
-            # 使用lambda创建闭包来捕获特定的窗口对象
-            handler = lambda visible, w=window: self._on_visible_changed(visible, w)
+            handler = partial(self._on_visible_changed, window=window)
             self.visible_handlers[window] = handler
             window.visibleChanged.connect(handler)
             if window.isVisible():
