@@ -64,7 +64,7 @@ class ThemeListener(QThread):
 
     def run(self):
         last_theme = darkdetect.theme()
-        while True:
+        while not self.isInterruptionRequested():
             current_theme = darkdetect.theme()
             if current_theme != last_theme:
                 last_theme = current_theme
@@ -73,7 +73,7 @@ class ThemeListener(QThread):
             time.sleep(1)
 
     def stop(self):
-        self.terminate()
+        self.requestInterruption()
 
 
 class ThemeManager(QObject):
@@ -101,10 +101,15 @@ class ThemeManager(QObject):
         清理资源并停止主题监听。
         """
         if self.listener:
+            try:
+                self.listener.themeChanged.disconnect(self._handle_system_theme)
+            except (RuntimeError, TypeError):
+                pass
             RinConfig.save_config()
             print("Save config.")
             self.listener.stop()
             self.listener.wait()  # 等待线程结束
+            self.listener = None
             print("Theme listener stopped.")
 
     def __new__(cls, *args, **kwargs):

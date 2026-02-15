@@ -193,15 +193,25 @@ class WinEventFilter(QAbstractNativeEventFilter):
         super().__init__()
         self.windows = windows  # 接受多个窗口
         self.hwnds = {}  # 用于存储每个窗口的 hwnd
+        self.visible_handlers = {}
         self.resize_border = 8
 
         for window in self.windows:
             # 使用lambda创建闭包来捕获特定的窗口对象
-            window.visibleChanged.connect(
-                lambda visible, w=window: self._on_visible_changed(visible, w)
-            )
+            handler = lambda visible, w=window: self._on_visible_changed(visible, w)
+            self.visible_handlers[window] = handler
+            window.visibleChanged.connect(handler)
             if window.isVisible():
                 self._init_window_handle(window)
+
+    def clean_up(self):
+        for window, handler in self.visible_handlers.items():
+            try:
+                window.visibleChanged.disconnect(handler)
+            except (RuntimeError, TypeError):
+                pass
+        self.visible_handlers.clear()
+        self.hwnds.clear()
 
     def _on_visible_changed(self, visible: bool, window: QQuickWindow):
         # 直接使用传入的窗口对象
