@@ -197,8 +197,22 @@ RowLayout {
             }
             if (stackView.depth > 1) {
                 currentPage = previousPage
-                stackView.pop()
+                let poppedItem = stackView.pop()
                 pageChanged()
+                // Destroy the popped item after the pop animation completes
+                if (poppedItem) {
+                    let destroyAfterPop = function() {
+                        if (!stackView.busy) {
+                            stackView.busyChanged.disconnect(destroyAfterPop)
+                            poppedItem.destroy()
+                        }
+                    }
+                    if (stackView.busy) {
+                        stackView.busyChanged.connect(destroyAfterPop)
+                    } else {
+                        Qt.callLater(function() { poppedItem.destroy() })
+                    }
+                }
             } else {
                 currentPage = previousPage
                 safePush(previousPage, false, true)  // 重新加载页面
@@ -354,18 +368,25 @@ RowLayout {
                     setPushInProgress(false)
                     return
                 }
-                stackView.replace(stackView.currentItem, pageInstance)
+                let oldItem = stackView.currentItem
+                stackView.replace(oldItem, pageInstance)
                 Qt.callLater(function() {
                     if (stackView.busy && stackView.currentItem === pageInstance) {
                         let animationHandler = function() {
                             if (stackView.currentItem === pageInstance && !stackView.busy) {
                                 setPushInProgress(false)
                                 stackView.busyChanged.disconnect(animationHandler)
+                                if (oldItem && oldItem !== pageInstance) oldItem.destroy()
                             }
                         }
-                        if (!stackView.busy) setPushInProgress(false)
-                        else stackView.busyChanged.connect(animationHandler)
-                    } else setPushInProgress(false)
+                        if (!stackView.busy) {
+                            setPushInProgress(false)
+                            if (oldItem && oldItem !== pageInstance) oldItem.destroy()
+                        } else stackView.busyChanged.connect(animationHandler)
+                    } else {
+                        setPushInProgress(false)
+                        if (oldItem && oldItem !== pageInstance) oldItem.destroy()
+                    }
                 })
                 return
             } else {
@@ -416,17 +437,20 @@ RowLayout {
                         setPushInProgress(false)
                         stackView.busyChanged.disconnect(animationHandler)
                         restoreItemsAfterReload()
+                        trimStackHistory()
                     }
                 }
                 if (!stackView.busy) {
                     setPushInProgress(false)
                     restoreItemsAfterReload()
+                    trimStackHistory()
                 } else {
                     stackView.busyChanged.connect(animationHandler)
                 }
             } else {
                 setPushInProgress(false)
                 restoreItemsAfterReload()
+                trimStackHistory()
             }
         })
     }
@@ -451,6 +475,54 @@ RowLayout {
                     }
                 }
             }
+        }
+    }
+
+    // Trim unreachable pages from the StackView to prevent memory leaks.
+    // The stack should hold at most: initial item + lastPages entries + current page.
+    function trimStackHistory() {
+        // Maximum allowed depth:
+        //   1 (initial item, always at position 0)
+        // + lastPages.length (history pages needed for back navigation, 0-2 entries)
+        // + 1 (current page)
+        // = lastPages.length + 2
+        let maxDepth = lastPages.length + 2
+        if (stackView.depth <= maxDepth) return
+
+        let totalDepth = stackView.depth
+        // Items at positions 1..orphanCount are no longer reachable by back navigation
+        let orphanCount = totalDepth - maxDepth
+
+        // Save references to orphaned items BEFORE clearing the stack
+        let orphans = []
+        for (let i = 1; i <= orphanCount; i++) {
+            let item = stackView.get(i)
+            if (item) orphans.push(item)
+        }
+
+        // Save references to keeper items (history pages + current page).
+        // These are the items at positions orphanCount+1..totalDepth-1.
+        let keepers = []
+        for (let i = orphanCount + 1; i < totalDepth; i++) {
+            let item = stackView.get(i)
+            if (item) keepers.push(item)
+        }
+
+        // Clear all items except the initial one (Immediate avoids spurious animations).
+        // Orphans and keepers are not GC'd because we hold JS references above.
+        if (stackView.depth > 1) {
+            stackView.pop(null, StackView.Immediate)
+        }
+
+        // Re-push keeper items in the original order so back navigation continues to work.
+        // QML StackView explicitly supports re-pushing previously popped item instances.
+        for (let i = 0; i < keepers.length; i++) {
+            stackView.push(keepers[i], {}, StackView.Immediate)
+        }
+
+        // Destroy orphaned items to free memory
+        for (let i = 0; i < orphans.length; i++) {
+            if (orphans[i]) orphans[i].destroy()
         }
     }
 
